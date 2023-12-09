@@ -1,0 +1,102 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body{
+    width: 100%;
+    height: 100vh;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+}
+
+.container{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.container h1{
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    color: #fff;
+}
+
+textarea{
+    resize: none;
+    padding: 0.8rem;
+}
+
+.button{
+    padding: 0.8rem;
+    border: none;
+    border-radius: 0.2rem;
+    background: #fff;
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.button:hover{
+    background: #505050;
+    color: #fff;
+}
+
+.form{
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
+    width: 712px;
+}
+
+.form-group {
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.form-group label {
+    margin-bottom: 10px;
+}
+
+.select-input {
+    width: 100%;
+}
+
+.button-group {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.textarea {
+    width: 100%;
+    min-width: 100%;
+}
+
+.input{
+    padding: 0.4rem;
+    border: none;
+    border-radius: 0.2rem;
+    background: #fff;
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.not-editable{
+    background: #ccc;
+    color: #000;
+}

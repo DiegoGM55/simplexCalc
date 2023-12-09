@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+	<head>
+		<meta charset="utf-8" />
+		<title>Simplex Solver</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+		<script type="text/javascript" src="assets/js/Solver/simplex.js"></script>
+
+    <link rel="stylesheet" href="assets/css/styles.css" />
+    
+	</head>
+
+  <body>
+		<div class="container">
+			<form name="theSpreadsheet" class="form">
+				<h1>Calculadora Simplex</h1>
+
+				<div class="form-group">
+					<label for="input">Digite seu problema abaixo (Clique no botão "Exemplo" para ver como digitar a entrada)</label>
+					<textarea class="textarea-input" name="input" rows="5" cols="80"></textarea>
+				</div>
+
+				<div class="form-group">
+					<label for="Mode">Modo:</label>
+					<select class="select-input input" name="Mode" size="3">
+						<option selected>Decimal</option>
+						<option>Fração</option>
+						<option>Inteiro</option>
+					</select>
+				</div>
+
+				<div class="form-group">
+					<label for="acc">Arredondar (digitos significantes)</label>
+					<input class="input-small input" type="text" size="2" value="6" name="acc" />
+				</div>
+
+        <div class="button-group">
+          <input type="button" class="button" value="Resolver" onClick="doIt(2); doIt(1)" />
+          <input type="button" class="button" value="Exemplo" onClick="doIt(5)" />
+          <input type="button" class="button" value="Apagar tudo" onClick="doIt(3)" />
+        </div>
+
+				<div class="form-group">
+					<label for="expr">Solução:</label>
+					<input class="textarea-input input" type="text" size="80" disabled name="expr" value="A solução ótima irá aparecer aqui." />
+				</div>
+
+
+				<div class="form-group">
+					<label for="output">A tabela de passos aparecerá aqui</label>
+					<textarea readonly class="textarea-output not-editable" name="output" rows="12" cols="80"></textarea>
+				</div>
+			</form>
+		</div>
+	</body>
+
+</html>
