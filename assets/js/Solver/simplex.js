@@ -1,94 +1,55 @@
-// JavaScript Document
 // *** ERROR HANDLING
-
-
-
 window.onerror = myErrorTrap;
 
-var epsilon = 0.00000000000001; // 10^-14
+let epsilon = 0.00000000000001; // 10^-14
+let maxSigDig = 13; // número máximo de dígitos significativos
 
-var maxSigDig = 13; // max number of sig digits
+let okToRoll = true; // resultados preliminares dos testes
+let stepName = ""; // para capturar erros
 
-// var exit = false; // get out of here
+// Símbolos especiais
+const tab = '\t';
+const cr = '\r';
+const lf = '\n';
+const symb = 'Å';
+const backSlash = '\\';
+const gteSymbol = '³'; // Símbolos em navegadores antigos
+const lteSymbol = '²';
+const lte = '\u2264'; // Símbolo real no IE
+const gte = '\u2265';
+const comma = ',';
 
-var okToRoll = true; // preliminary testing results
+let singular = false;
+let msFormat = false;
+let maxRows = 15;
+let maxCols = 30;
+let numRows = 0;
+let numCols = 0;
+let numConstraints = 0;
+let maximization = true; // este é um problema de maximização
+let phase1 = false; // estamos na fase 1?
+let objectiveName = "p";
+let numVariables = 1;
+let variables = [];
+let theTableau = new makeArray2(1, 1);
+let theStringTableau = new makeArray2(1, 1); // para exibir as etapas do cálculo
+let starred = new makeArray(1); // linhas marcadas
+let TableauNumber = 1; // o número de tabelas
+let maxSteps = 50; // número máximo de tabelas
+let numSigDigs = 6; // precisão padrão
+let activeVars = new Array(); // variáveis ativas
 
-var stepName = ""; // for error trap
-
-var tab = unescape("%09"); // these are now the appropriate strings;
-
-var cr = unescape("%0D");
-
-var lf = unescape("%0A");
-
-var symb = unescape("%C5");
-
-var backSlash = unescape("%5C");
-
-var gteSymbol = unescape("%B3"); // symbols in old netscape
-
-var lteSymbol = unescape("%B2");
-
-var lte = unescape("%u2264"); // actual symbol in IE
-
-var gte = unescape("%u2265");
-
-var comma = ",";
-
-var singular = false;
-
-var msFormat = false;
-
-var maxRows = 15;
-
-var maxCols = 30;
-
-var numRows = 0;
-
-var numCols = 0;
-
-var numConstraints = 0;
-
-var maximization = true; // this is a max problem
-
-var phase1 = false; // are we in phase 1?
-
-var objectiveName = "p";
-
-var numVariables = 1;
-
-var variables = [];
-
-var theTableau = new makeArray2(1, 1);
-
-var theStringTableau = new makeArray2(1, 1); // to display steps in the computation
-
-var starred = new makeArray(1); // starred rows
-
-var TableauNumber = 1; // the number of tableaus
-
-var maxSteps = 50; // maximum number of tableaux
-
-var numSigDigs = 6; // default accuracy
-
-var activeVars = new Array(); // active variables
-
-// old globals below...
-
-var maxDenom = 1000; // for fraction approximation
-
-var tol = 0.000000001; // for 10 digit accuracy guaranteed cutoff for fraction approx not yet implemented
-
-var tooBigString =
-	"Muitas matrizes em sua expressão," +
+// Antigas variáveis globais
+let maxDenom = 1000;
+let tol = 0.000000001;
+let tooBigString = "Muitas matrizes em sua expressão," +
 	cr +
 	"ou sua expressão está muito complicada." +
 	cr +
 	"Por favor, mantenha-a simples!";
 
-// as instruções
-
-var theSampleLPString =
+// Strings de exemplo e instruções
+let theSampleLPString =
 	"Maximizar p = (1/2)x + 3y + z + 4w sujeito a:" +
 	cr +
 	"x + y + z + w <= 40" +
@@ -97,7 +58,7 @@ var theSampleLPString =
 	cr +
 	"w - y >= 10";
 
-var theInstructionString =
+let theInstructionString =
 	"Notas sobre formatação: " +
 	cr +
 	" (1) Nomes de variáveis devem começar com letras." +
@@ -127,849 +88,498 @@ var theInstructionString =
 	" (6) Não é necessário inserir as restrições padrão: x >= 0, y >= 0, z >= 0 etc.";
 
 
-// end instructions
+let fractionMode = false;
+let integerMode = false;
 
-var fractionMode = false;
 
-var integerMode = false;
+// ****************** ERRO *************
 
-var okToRoll = true;
-
-var browserName = navigator.appName;
-
-var browserVersion = navigator.appVersion;
-
-if (browserName == "Netscape" && parseInt(browserVersion) >= 3)
-	browserName = "N";
-else if (
-	browserName == "Microsoft Internet Explorer" &&
-	parseInt(browserVersion) >= 3
-)
-	browserName = "M";
-
-// ****************** ERROR HANDLER *************
-
-function myErrorTrap(message, url, linenumber) {
+function myErrorTrap() {
 	alert(
-		"Sorry, I can't process this." +
+		"Ocorreu um erro." +
 			cr +
-			" Press 'Example' for general information."
+			" Clique em 'Exemplo' para ver como inserir um problema." 
 	);
 
 	return true;
-} // end of on error
+} 
 
-// ******************** MATH UTILITIES ******************
+// ******************* UTILITÁRIOS MATEMÁTICOS *******************
 
 function hcf(a, b) {
-	var bigger = Math.abs(a);
-
-	var smaller = Math.abs(b);
-
-	var x = 0;
-
-	var theResult = 1;
-
+	let bigger = Math.abs(a);
+	let smaller = Math.abs(b);
+	let x = 0;
+	let theResult = 1;
+  
 	if (a == 0 || b == 0) return 1;
-
+  
 	if (smaller > bigger) {
-		x = bigger;
-		bigger = smaller;
-		smaller = x;
+	  [bigger, smaller] = [smaller, bigger];
 	}
-
-	var testRatio = roundSigDig(bigger / smaller, 11);
-
-	var testRatio2 = 0;
-
+  
+	let testRatio = roundSigDig(bigger / smaller, 11);
+	let testRatio2 = 0;
+  
 	if (testRatio == Math.floor(testRatio)) return smaller;
 	else {
-		// look for a factor of the smaller, deplete it by that factor and multiply bigger by it
-
-		var found = false;
-
-		var upperlimit = smaller;
-
-		for (var i = upperlimit; i >= 2; i--) {
-			testRatio = roundSigDig(smaller / i, 10);
-
-			testRatio2 = roundSigDig(bigger / i, 10);
-
-			if (
-				testRatio == Math.floor(testRatio) &&
-				testRatio2 == Math.floor(testRatio2)
-			) {
-				smaller = Math.round(smaller / i);
-
-				smaller = Math.round(bigger / i);
-
-				return theResult * hcf(bigger, smaller);
-			}
+	  let found = false;
+	  let upperlimit = smaller;
+  
+	  for (let i = upperlimit; i >= 2; i--) {
+		testRatio = roundSigDig(smaller / i, 10);
+		testRatio2 = roundSigDig(bigger / i, 10);
+  
+		if (testRatio == Math.floor(testRatio) && testRatio2 == Math.floor(testRatio2)) {
+		  smaller = Math.round(smaller / i);
+		  bigger = Math.round(bigger / i);
+		  return theResult * hcf(bigger, smaller);
 		}
-
-		return theResult;
+	  }
+  
+	  return theResult;
 	}
-
-	alert("error!");
-
-	return -1; // should never get here
-} // hcf
-
-function lcm(a, b) {
-	// lowest common multiple
-
-	var bigger = Math.abs(a);
-
-	var smaller = Math.abs(b);
-
-	var x = 0;
-
+  }
+  
+  function lcm(a, b) {
+	let bigger = Math.abs(a);
+	let smaller = Math.abs(b);
+	let x = 0;
+  
 	if (a == 0 || b == 0) return 1;
-
+  
 	if (smaller > bigger) {
-		x = bigger;
-		bigger = smaller;
-		smaller = x;
+	  [bigger, smaller] = [smaller, bigger];
 	}
-
-	var testRatio = roundSigDig(bigger / smaller, 11);
-
+  
+	let testRatio = roundSigDig(bigger / smaller, 11);
+  
 	if (testRatio == Math.floor(testRatio)) return bigger;
 	else {
-		// look for a factor of the smaller, deplete it by that factor and multiply bigger by it
-
-		var found = false;
-
-		for (var i = 2; i <= smaller; i++) {
-			if (i * i >= smaller) break;
-
-			testRatio = roundSigDig(smaller / i, 11);
-
-			if (testRatio == Math.floor(testRatio)) {
-				smaller = testRatio;
-
-				bigger = bigger * i;
-
-				return lcm(bigger, smaller);
-			}
+	  for (let i = 2; i <= smaller; i++) {
+		if (i * i >= smaller) break;
+  
+		testRatio = roundSigDig(smaller / i, 11);
+  
+		if (testRatio == Math.floor(testRatio)) {
+		  smaller = testRatio;
+		  bigger = bigger * i;
+		  return lcm(bigger, smaller);
 		}
-
-		return bigger * smaller;
+	  }
+  
+	  return bigger * smaller;
 	}
-
-	alert("error!");
-
-	return -1; // should never get here
-} // lcm
-
-// *** reducing a fraction ***
-
-function reduce(fraction) {
-	with (Math) {
-		var HCF = hcf(fraction[1], fraction[2]);
-
-		fraction[1] = Math.round(fraction[1] / HCF);
-
-		fraction[2] = Math.round(fraction[2] / HCF);
-	} // with math
-
+  }
+  
+  function reduce(fraction) {
+	const HCF = hcf(fraction[1], fraction[2]);
+	fraction[1] = Math.round(fraction[1] / HCF);
+	fraction[2] = Math.round(fraction[2] / HCF);
 	return fraction;
-} // reduce fraction
-
-function toFracArr(x, maxDenom, tol) {
-	// identical to toFrac, except this returns an array [1] = numerator;  [2] = denom
-
-	// rather than a string
-
-	// tolerance is the largest errror you will tolerate before resorting to
-
-	// expressing the result as the input decimal in fraction form
-
-	// suggest no less than 10^-10, since we round all to 15 decimal places.
-
-	var theFrac = new Array();
-
-	theFrac[1] = 0;
-
-	theFrac[2] = 0;
-
-	var p1 = 1;
-
-	var p2 = 0;
-
-	var q1 = 0;
-
-	var q2 = 1;
-
-	var u = 0;
-
-	var t = 0;
-
-	var flag = true;
-
-	var negflag = false;
-
-	var a = 0;
-
-	var xIn = x; // variable for later
-
+  }
+  
+  function toFracArr(x, maxDenom, tol) {
+	let theFrac = [0, 0];
+	let p1 = 1,
+	  p2 = 0,
+	  q1 = 0,
+	  q2 = 1,
+	  u = 0,
+	  t = 0,
+	  flag = true,
+	  negflag = false,
+	  a = 0,
+	  xIn = x;
+  
 	if (x > 10000000000) return theFrac;
-
+  
 	while (flag) {
-		if (x < 0) {
-			x = -x;
-			negflag = true;
-			p1 = -p1;
-		}
-
-		var intPart = Math.floor(x);
-
-		var decimalPart = roundSigDig(x - intPart, 15);
-
-		x = decimalPart;
-
-		a = intPart;
-
-		t = a * p1 + p2;
-
-		u = a * q1 + q2;
-
-		if (Math.abs(t) > 10000000000 || u > maxDenom) {
-			n = p1;
-
-			d = q1;
-
-			break;
-		}
-
-		p = t;
-
-		q = u;
-
-		//		cout << "cf coeff: " << a << endl; // for debugging
-
-		//		cout << p << "/" << q << endl;	// for debugging
-
-		if (x == 0) {
-			n = p;
-
-			d = q;
-
-			break;
-		}
-
-		p2 = p1;
-
-		p1 = p;
-
-		q2 = q1;
-
-		q1 = q;
-
-		x = 1 / x;
-	} // while ( true );
-
-	theFrac[1] = n;
-
-	theFrac[2] = d;
-
+	  if (x < 0) {
+		x = -x;
+		negflag = true;
+		p1 = -p1;
+	  }
+  
+	  let intPart = Math.floor(x);
+	  let decimalPart = roundSigDig(x - intPart, 15);
+  
+	  x = decimalPart;
+	  a = intPart;
+	  t = a * p1 + p2;
+	  u = a * q1 + q2;
+  
+	  if (Math.abs(t) > 10000000000 || u > maxDenom) {
+		theFrac[1] = p1;
+		theFrac[2] = q1;
+		break;
+	  }
+  
+	  let p = t;
+	  let q = u;
+  
+	  if (x == 0) {
+		theFrac[1] = p;
+		theFrac[2] = q;
+		break;
+	  }
+  
+	  [p2, p1, q2, q1] = [p1, p, q1, q];
+	  x = 1 / x;
+	}
+  
 	return theFrac;
-} // toFracArr
-
-function toFrac(x, maxDenom, tol) {
-	// tolerance is the largest errror you will tolerate before resorting to
-
-	// expressing the result as the input decimal in fraction form
-
-	// suggest no less than 10^-10, since we round all to 15 decimal places.
-
-	var theFrac = new Array();
-
-	theFrac[1] = 0;
-
-	theFrac[2] = 0;
-
-	var p1 = 1;
-
-	var p2 = 0;
-
-	var q1 = 0;
-
-	var q2 = 1;
-
-	var u = 0;
-
-	var t = 0;
-
-	var flag = true;
-
-	var negflag = false;
-
-	var a = 0;
-
-	var xIn = x; // variable for later
-
+  }
+  
+  function toFrac(x, maxDenom, tol) {
+	let theFrac = [0, 0];
+	let p1 = 1,
+	  p2 = 0,
+	  q1 = 0,
+	  q2 = 1,
+	  u = 0,
+	  t = 0,
+	  flag = true,
+	  negflag = false,
+	  a = 0,
+	  xIn = x;
+  
 	if (x > 10000000000) return theFrac;
-
+  
 	while (flag) {
-		if (x < 0) {
-			x = -x;
-			negflag = true;
-			p1 = -p1;
-		}
-
-		var intPart = Math.floor(x);
-
-		var decimalPart = roundSigDig(x - intPart, 15);
-
-		x = decimalPart;
-
-		a = intPart;
-
-		t = a * p1 + p2;
-
-		u = a * q1 + q2;
-
-		if (Math.abs(t) > 10000000000 || u > maxDenom) {
-			n = p1;
-
-			d = q1;
-
-			break;
-		}
-
-		p = t;
-
-		q = u;
-
-		//		cout << "cf coeff: " << a << endl; // for debugging
-
-		//		cout << p << "/" << q << endl;	// for debugging
-
-		if (x == 0) {
-			n = p;
-
-			d = q;
-
-			break;
-		}
-
-		p2 = p1;
-
-		p1 = p;
-
-		q2 = q1;
-
-		q1 = q;
-
-		x = 1 / x;
-	} // while ( true );
-
-	theFrac[1] = n;
-
-	theFrac[2] = d;
-
+	  if (x < 0) {
+		x = -x;
+		negflag = true;
+		p1 = -p1;
+	  }
+  
+	  let intPart = Math.floor(x);
+	  let decimalPart = roundSigDig(x - intPart, 15);
+  
+	  x = decimalPart;
+	  a = intPart;
+	  t = a * p1 + p2;
+	  u = a * q1 + q2;
+  
+	  if (Math.abs(t) > 10000000000 || u > maxDenom) {
+		theFrac[1] = p1;
+		theFrac[2] = q1;
+		break;
+	  }
+  
+	  let p = t;
+	  let q = u;
+  
+	  if (x == 0) {
+		theFrac[1] = p;
+		theFrac[2] = q;
+		break;
+	  }
+  
+	  [p2, p1, q2, q1] = [p1, p, q1, q];
+	  x = 1 / x;
+	}
+  
 	if (theFrac[2] == 1) return theFrac[1].toString();
 	else return theFrac[1] + "/" + theFrac[2];
-} // toFrac
-
-function lastChar(theString) {
+  }
+  
+  function lastChar(theString) {
 	if (theString == "") return theString;
-
-	var len = theString.length;
-
-	return theString.charAt(len - 1);
-}
-
-function isCharHere(InString, RefString) {
+	return theString.charAt(theString.length - 1);
+  }
+  
+  function isCharHere(InString, RefString) {
 	if (InString.length != 1) return false;
-
-	if (RefString.indexOf(InString, 0) == -1) return false;
-
+	return RefString.indexOf(InString, 0) !== -1;
+  }
+  
+  function looksLikeANumber(theString) {
+	const length = theString.length;
+	if (length === 0) return false;
+  
+	const validChars = "1234567890-+*. /";
+	for (let i = 0; i < length; i++) {
+	  if (validChars.indexOf(theString.charAt(i)) === -1) {
+		return false;
+	  }
+	}
 	return true;
-}
-
-function looksLikeANumber(theString) {
-	// returns true if theString looks like it can be evaluated
-
-	var result = true;
-
-	var length = theString.length;
-
-	if (length == 0) return false;
-
-	var x = "";
-
-	var y = "1234567890-+*. /";
-
-	var yLength = y.length;
-
-	for (var i = 0; i <= length; i++) {
-		x = theString.charAt(i);
-
-		result = false;
-
-		for (var j = 0; j <= yLength; j++) {
-			if (x == y.charAt(j)) {
-				result = true;
-				break;
-			}
-		} // j
-
-		if (result == false) return false;
-	} // i
-
-	return result;
-} // looks like a number
-
-function roundSix(theNumber) {
-	var x = Math.round(1000000 * theNumber) / 1000000;
-
-	return x;
-}
-
-function shiftRight(theNumber, k) {
-	if (k == 0) return theNumber;
-	else {
-		var k2 = 1;
-
-		var num = k;
-
-		if (num < 0) num = -num;
-
-		for (var i = 1; i <= num; i++) {
-			k2 = k2 * 10;
-		}
+  }
+  
+  function roundSix(theNumber) {
+	return Math.round(1000000 * theNumber) / 1000000;
+  }
+  
+  function shiftRight(theNumber, k) {
+	if (k === 0) return theNumber;
+  
+	let k2 = 1;
+	let num = Math.abs(k);
+  
+	for (let i = 1; i <= num; i++) {
+	  k2 = k2 * 10;
 	}
-
-	if (k > 0) {
-		return k2 * theNumber;
-	} else {
-		return theNumber / k2;
-	}
-}
-
-function roundSigDig(theNumber, numDigits) {
-	numDigits = numDigits - 1; // too accurate as written
-
-	with (Math) {
-		if (theNumber == 0) return 0;
-		else if (abs(theNumber) < 0.000000000001) return 0;
-		// WARNING: ignores numbers less than 10^(-12)
-		else {
-			var k = floor(log(abs(theNumber)) / log(10)) - numDigits;
-
-			var k2 = shiftRight(round(shiftRight(abs(theNumber), -k)), k);
-
-			if (theNumber > 0) return k2;
-			else return -k2;
-		} // end else
-	}
-}
-
-function looksLikeANumber(theString) {
-	// returns true if theString looks like it can be evaluated
-
-	var result = true;
-
-	var length = theString.length;
-
-	var x = "";
-
-	var y = "1234567890-+^*./ ";
-
-	var yLength = y.length;
-
-	for (var i = 0; i <= length; i++) {
-		x = theString.charAt(i);
-
-		result = false;
-
-		for (var j = 0; j <= yLength; j++) {
-			if (x == y.charAt(j)) {
-				result = true;
-				break;
-			}
-		} // j
-
-		if (result == false) return false;
-	} // i
-
-	return result;
-} // looks like a number
-
-// ************ MAKE INTEGER
-
-// Makes a matrix integer by least common multiples of rows
-
-// returms a matrix of STRINGS if Strings = true else gives integers
-
-// input = a matrix of real floats
-
-// also records the row lcm of row i in outArray[i][0]
-
-function makeInteger(theMatrix, RowNum, ColNum, Strings) {
-	var rowArray = new makeArray2(ColNum, 2);
-
-	var outArray = new makeArray2(RowNum, ColNum);
-
-	for (var i = 1; i <= RowNum; i++) {
-		// set up fraction row array
-
-		for (var j = 1; j <= ColNum; j++) {
-			for (var k = 1; k <= 2; k++)
-				rowArray[j][k] = toFracArr(theMatrix[i][j], maxDenom, tol)[k];
-		} // j
-
-		// get the lcm of all the row denominators
-
-		var rowLcm = 1;
-
-		for (j = 1; j <= ColNum; j++) rowLcm = lcm(rowLcm, rowArray[j][2]);
-
-		// now multiply the row by the lcm
-
-		var x = 0;
-
-		for (j = 1; j <= ColNum; j++) {
-			x = (rowLcm * rowArray[j][1]) / rowArray[j][2];
-
-			if (!Strings) outArray[i][j] = Math.round(x);
-			else outArray[i][j] = Math.round(x).toString();
-		} // j
-
-		outArray[0][j] = rowLcm;
-	} // i
-
-	return outArray;
-} // makeInteger
-
-// *******************PIVOT **********************
+  
+	return k > 0 ? k2 * theNumber : theNumber / k2;
+  }
+  
+  function roundSigDig(theNumber, numDigits) {
+	numDigits = numDigits - 1;
+  
+	if (theNumber === 0 || Math.abs(theNumber) < 0.000000000001) return 0;
+  
+	let k = Math.floor(Math.log(Math.abs(theNumber)) / Math.log(10)) - numDigits;
+	let k2 = shiftRight(Math.round(shiftRight(Math.abs(theNumber), -k)), k);
+  
+	return theNumber > 0 ? k2 : -k2;
+  }
+  
+// *******************PIVO **********************
 
 function pivot(InMatrix, rows, cols, theRow, theCol) {
-	// alert("theRow = " + theRow + "theCol" + theCol);
-
+	// O elemento pivô é o valor na posição (theRow, theCol)
 	var thePivot = InMatrix[theRow][theCol];
-
-	activeVars[theRow] = theCol; // reset the active variable
-	starred[theRow] = 0; // unstar the row
-
+  
+	// Atualiza a variável ativa para a coluna do pivô
+	activeVars[theRow] = theCol;
+  
+	// Remove a estrela da linha pivô
+	starred[theRow] = 0;
+  
+	// Normaliza a linha pivô dividindo todos os elementos pelo pivô
 	for (var i = 1; i <= cols; i++) {
-		InMatrix[theRow][i] = InMatrix[theRow][i] / thePivot;
-	} // i
-
-	// now pivot
-
+	  InMatrix[theRow][i] = InMatrix[theRow][i] / thePivot;
+	}
+  
+	// Realiza o pivoteamento nas outras linhas
 	for (var i = 1; i <= rows; i++) {
-		if (i != theRow && InMatrix[i][theCol] != 0) {
-			var factr = InMatrix[i][theCol];
-
-			for (var j = 1; j <= cols; j++) {
-				InMatrix[i][j] =
-					roundSigDig(InMatrix[i][j], maxSigDig + 2) -
-					roundSigDig(factr * InMatrix[theRow][j], maxSigDig + 2); // Fix 01 avoiding subtractive error
-			} // j
+	  // Ignora a linha pivô e as linhas com valor zero na coluna do pivô
+	  if (i != theRow && InMatrix[i][theCol] != 0) {
+		var factr = InMatrix[i][theCol];
+  
+		// Atualiza os elementos da linha usando o pivoteamento
+		for (var j = 1; j <= cols; j++) {
+		  InMatrix[i][j] =
+			roundSigDig(InMatrix[i][j], maxSigDig + 2) -
+			roundSigDig(factr * InMatrix[theRow][j], maxSigDig + 2);
 		}
-	} // i
-
-	// now round all answers
-
-	// for (var i = 1; i <= rows; i++)
-
-	// 	{
-
-	// 	for (var j = 1; j <= cols; j++)
-
-	// 		{
-
-	// 		InMatrix[i][j] = roundNine(InMatrix[i][j]);
-
-	// 		} // j
-
-	// 	} // i
-
+	  }
+	}
+  
+	// Retorna a matriz resultante após o pivoteamento
 	return InMatrix;
-}
+  }
 
-// ***************** END PIVOT *********************
+// ***************** Fim Pivo *********************
 
-// ****************SIMPLEX METHOD****************
+// ****************SIMPLEX ****************
 
 function simplexMethod(InMatrix, rows, cols) {
-	var negIndicator = false;
-
-	var testRatio = new Array();
-
-	var theRow = 0;
-	singular = false;
-
-	document.theSpreadsheet.expr.value = "working..";
-
-	// alert("HERE")
-
-	// PHASE I
-
+	var negIndicator = false; // Indica se há algum número negativo na última linha do tableau.
+	var testRatio = new Array(); // Array para armazenar razões a serem consideradas durante o pivoteamento.
+	var theRow = 0; // Índice da linha escolhida para o pivoteamento.
+	singular = false; // Indica se o problema é singular.
+	
+	document.theSpreadsheet.expr.value = "trabalhando...";
+	
+	// Fase I
 	while (phase1 && TableauNumber <= maxSteps) {
-		// big chunk of code removed here including an "if"
-
-		// first unstar all rows with zeros on the right-hand side
-		// by reversing the inequalities
-		// this is absolutely necessary in case of things like
-		// -x - y >= 0
-		// reversing the signs and removing the star
-		// will not effect the active variable name
-		// as it value is still zero in this case
-		// and its pivot will now be positive
-
-		var checkingForZeros = true;
-		var foundAZero = false;
-		while (checkingForZeros) {
-			checkingForZeros = false;
-			for (i = 1; i <= numRows - 1; i++) {
-				if (starred[i] == 1) break;
-			} // i
-			theRowx = i;
-			// check the first column to see if it has a zero on the
-			// right-hand side and is hence equivalent to <= constraint
-			// Fix 01 if it is really small make it zero first:
-			if (roundSigDig(InMatrix[theRowx][cols], maxSigDig) == 0)
-				InMatrix[theRowx][cols] = 0;
-
-			if (InMatrix[theRowx][cols] == 0 && starred[theRowx] == 1) {
-				checkingForZeros = true;
-				foundAZero = true;
-				for (var j = 1; j <= cols - 1; j++) {
-					InMatrix[theRowx][j] *= -1;
-				} // j
-				starred[theRowx] = 0;
-				// add additional tableaus
-				TableauNumber += 1;
-				document.theSpreadsheet.expr.value += "..";
-				displayMatrix(1);
-			} // found a zero on the right-hand side
-		} // while checking for zeros
-
-		// at this  point, check if there are any starred rows left
-		phase1 = false;
-		for (var i = 1; i <= numConstraints; i++) {
-			if (starred[i] == 1) {
-				phase1 = true;
-				break;
-			}
-		} // i
-
-		if (phase1) {
-			// there are starred rows left
-			// scan the first starred row starred row for the largest pos. element & pivot on that column
-
-			// this is actually step 2
-			if (!foundAZero) {
-				// find the largest positive entry in the first starred row
-				// and pivot
-
-				var rowmax = 0;
-
-				for (i = 1; i <= numRows - 1; i++) {
-					if (starred[i] == 1) break;
-				} // i
-
-				theRowx = i;
-
-				for (j = 1; j <= numCols - 2; j++) {
-					numx = roundSigDig(InMatrix[i][j], 10);
-
-					if (numx > rowmax) {
-						rowmax = numx;
-						theColx = j;
-					}
-				} // j
-
-				if (rowmax == 0) {
-					singular = true;
-					displayFinalStatus();
-					return InMatrix;
-				} else {
-					// get the lowest ratio and pivot on theRowx, theColx;
-
-					for (var i = 1; i <= rows - 1; i++) {
-						testRatio[i] = -1;
-
-						if (roundSigDig(InMatrix[i][theColx], maxSigDig) > 0) {
-							// dont want to pivot on a number too close to zero
-
-							if (Math.abs(InMatrix[i][cols]) < epsilon) InMatrix[i][cols] = 0;
-							// fixing numbers really close to zero
-							testRatio[i] = InMatrix[i][cols] / InMatrix[i][theColx];
-						}
-					} // i
-
-					var minRatio = 10000000000000;
-
-					theRow = 0; // this will have smallest ratio
-
-					for (var i = 1; i <= rows - 1; i++) {
-						if (testRatio[i] >= 0 && testRatio[i] < minRatio) {
-							minRatio = testRatio[i];
-
-							theRow = i;
-						} // end if
-						else if (testRatio[i] >= 0 && testRatio[i] == minRatio) {
-							if (starred[i] == 1) theRow = i;
-							// select starred ones in preference to others
-							else if (Math.random() > 0.5) theRow = i;
-							// random tie-breaking
-						}
-					} // i
-
-					// escape clause follows
-
-					if (theRow == 0) {
-						singular = true;
-						displayFinalStatus();
-						return InMatrix;
-					}
-
-					InMatrix = pivot(InMatrix, rows, cols, theRow, theColx);
-
-					// end of this step
-				} // if did not find a zero
-
-				TableauNumber += 1;
-
-				document.theSpreadsheet.expr.value += "..";
-
-				displayMatrix(1);
-			}
-		} // end of phase 1 treatment
-
-		// phase1 = false  // TEMPORARY MEASURE TO PREVENT INF LOOPS
-	}
-
-	// END OF PHASE I
-
-	// NOW PHASE II
-
-	// alert ("HERE AT PHASE 2")
-
-	var testnum = 0;
-
-	for (var i = 1; i <= cols - 1; i++) {
-		testnum = roundSigDig(InMatrix[rows][i], 10);
-
-		if (testnum < 0) {
-			negIndicator = true;
+	  // Código removido para economizar espaço
+	  
+	  // Primeiro, remova a estrela de todas as linhas com zeros no lado direito,
+	  // invertendo as desigualdades.
+	  var checkingForZeros = true;
+	  var foundAZero = false;
+	  
+	  while (checkingForZeros) {
+		checkingForZeros = false;
+		
+		for (var i = 1; i <= numRows - 1; i++) {
+		  if (starred[i] == 1) break;
 		}
-	} // i
-
-	var theCol = 0;
-
-	if (negIndicator) {
-		// look for most negative of them;
-
-		var minval = 0;
-
-		for (i = 1; i <= cols - 1; i++) {
-			testnum = roundSigDig(InMatrix[rows][i], 10);
-
-			if (testnum < minval) {
-				minval = testnum;
-
-				theCol = i;
+		theRowx = i;
+		
+		// Verifica se o primeiro elemento da linha é zero no lado direito
+		if (roundSigDig(InMatrix[theRowx][cols], maxSigDig) == 0)
+		  InMatrix[theRowx][cols] = 0;
+  
+		if (InMatrix[theRowx][cols] == 0 && starred[theRowx] == 1) {
+		  checkingForZeros = true;
+		  foundAZero = true;
+		  
+		  // Inverte os sinais dos elementos da linha
+		  for (var j = 1; j <= cols - 1; j++) {
+			InMatrix[theRowx][j] *= -1;
+		  }
+		  
+		  starred[theRowx] = 0;
+		  TableauNumber += 1;
+		  document.theSpreadsheet.expr.value += "..";
+		  displayMatrix(1);
+		}
+	  }
+	  
+	  // Verifica se há linhas marcadas com estrela
+	  phase1 = false;
+	  for (var i = 1; i <= numConstraints; i++) {
+		if (starred[i] == 1) {
+		  phase1 = true;
+		  break;
+		}
+	  }
+  
+	  if (phase1) {
+		if (!foundAZero) {
+		  var rowmax = 0;
+		  
+		  for (i = 1; i <= numRows - 1; i++) {
+			if (starred[i] == 1) break;
+		  }
+		  theRowx = i;
+  
+		  // Encontra o maior valor positivo na primeira linha marcada com estrela
+		  for (var j = 1; j <= numCols - 2; j++) {
+			numx = roundSigDig(InMatrix[i][j], 10);
+			
+			if (numx > rowmax) {
+			  rowmax = numx;
+			  theColx = j;
 			}
-		} // i
-
-		//alert(theCol)
-	}
-
-	while (negIndicator && TableauNumber <= maxSteps) {
-		// phase 2
-
-		for (var i = 1; i <= rows - 1; i++) {
-			testRatio[i] = -1;
-
-			if (roundSigDig(InMatrix[i][theCol], maxSigDig) > 0) {
-				// dont want to pivot on a number too close to zero
-
-				if (Math.abs(InMatrix[i][cols]) < epsilon) InMatrix[i][cols] = 0;
-				// fixing numbers really close to zero
-				testRatio[i] = InMatrix[i][cols] / InMatrix[i][theCol];
-				// alert(testRatio[i]);
-			}
-		} // i
-
-		var minRatio = 10000000000000;
-
-		theRow = 0; // this will have smallest ratio
-
-		for (var i = 1; i <= rows - 1; i++) {
-			if (testRatio[i] >= 0 && testRatio[i] < minRatio) {
-				minRatio = testRatio[i];
-
-				theRow = i;
-			} else if (testRatio[i] >= 0 && testRatio[i] == minRatio) {
-				if (Math.random() > 0.5) theRow = i;
-				// random tie-breaking
-			}
-		} // i
-
-		// escape clause:
-
-		if (theRow == 0) {
+		  }
+  
+		  if (rowmax == 0) {
 			singular = true;
 			displayFinalStatus();
 			return InMatrix;
-		}
-
-		InMatrix = pivot(InMatrix, rows, cols, theRow, theCol);
-
-		// end of this step
-
-		TableauNumber += 1;
-
-		document.theSpreadsheet.expr.value += "..";
-
-		displayMatrix(1);
-
-		negIndicator = false;
-
-		for (var i = 1; i <= cols - 1; i++) {
-			if (roundSigDig(InMatrix[rows][i], 10) < 0) {
-				// theCol = i;
-
-				negIndicator = true;
-
-				//alert("Column = "+i+"   Value = " + InMatrix[rows][i]);
+		  } else {
+			// Calcula a razão mais baixa e faz o pivoteamento na linha theRowx, coluna theColx
+			for (var i = 1; i <= rows - 1; i++) {
+			  testRatio[i] = -1;
+			  
+			  if (roundSigDig(InMatrix[i][theColx], maxSigDig) > 0) {
+				if (Math.abs(InMatrix[i][cols]) < epsilon) InMatrix[i][cols] = 0;
+				testRatio[i] = InMatrix[i][cols] / InMatrix[i][theColx];
+			  }
 			}
-		} // i
-
-		// ERROR CORRECTION BELOW:
-
-		if (negIndicator) {
-			// need to select the most negative EVERY time
-
-			// look for most negative of them;
-
-			var minval = 0;
-
-			for (i = 1; i <= cols - 1; i++) {
-				testnum = roundSigDig(InMatrix[rows][i], 10);
-
-				if (testnum < minval) {
-					minval = testnum;
-
-					theCol = i;
-				}
-			} // i
-		} // end if negIndicator is still true
-		//alert(theCol)
-	} // while negIndicator
-
+			
+			var minRatio = 10000000000000;
+			theRow = 0;
+			
+			for (var i = 1; i <= rows - 1; i++) {
+			  if (testRatio[i] >= 0 && testRatio[i] < minRatio) {
+				minRatio = testRatio[i];
+				theRow = i;
+			  } else if (testRatio[i] >= 0 && testRatio[i] == minRatio) {
+				if (starred[i] == 1) theRow = i;
+				else if (Math.random() > 0.5) theRow = i;
+			  }
+			}
+  
+			// Tratamento de escape
+			if (theRow == 0) {
+			  singular = true;
+			  displayFinalStatus();
+			  return InMatrix;
+			}
+  
+			InMatrix = pivot(InMatrix, rows, cols, theRow, theColx);
+			TableauNumber += 1;
+			document.theSpreadsheet.expr.value += "..";
+			displayMatrix(1);
+		  }
+		}
+	  }
+	}
+  
+	// Fim da Fase I
+  
+	// Fase II
+	var testnum = 0;
+  
+	for (var i = 1; i <= cols - 1; i++) {
+	  testnum = roundSigDig(InMatrix[rows][i], 10);
+  
+	  if (testnum < 0) {
+		negIndicator = true;
+	  }
+	}
+  
+	var theCol = 0;
+  
+	if (negIndicator) {
+	  var minval = 0;
+  
+	  for (i = 1; i <= cols - 1; i++) {
+		testnum = roundSigDig(InMatrix[rows][i], 10);
+  
+		if (testnum < minval) {
+		  minval = testnum;
+		  theCol = i;
+		}
+	  }
+	}
+  
+	while (negIndicator && TableauNumber <= maxSteps) {
+	  for (var i = 1; i <= rows - 1; i++) {
+		testRatio[i] = -1;
+		
+		if (roundSigDig(InMatrix[i][theCol], maxSigDig) > 0) {
+		  if (Math.abs(InMatrix[i][cols]) < epsilon) InMatrix[i][cols] = 0;
+		  testRatio[i] = InMatrix[i][cols] / InMatrix[i][theCol];
+		}
+	  }
+  
+	  var minRatio = 10000000000000;
+	  theRow = 0;
+  
+	  for (var i = 1; i <= rows - 1; i++) {
+		if (testRatio[i] >= 0 && testRatio[i] < minRatio) {
+		  minRatio = testRatio[i];
+		  theRow = i;
+		} else if (testRatio[i] >= 0 && testRatio[i] == minRatio) {
+		  if (Math.random() > 0.5) theRow = i;
+		}
+	  }
+  
+	  if (theRow == 0) {
+		singular = true;
+		displayFinalStatus();
+		return InMatrix;
+	  }
+  
+	  InMatrix = pivot(InMatrix, rows, cols, theRow, theCol);
+	  TableauNumber += 1;
+	  document.theSpreadsheet.expr.value += "..";
+	  displayMatrix(1);
+	  
+	  negIndicator = false;
+  
+	  for (var i = 1; i <= cols - 1; i++) {
+		if (roundSigDig(InMatrix[rows][i], 10) < 0) {
+		  negIndicator = true;
+		}
+	  }
+  
+	  if (negIndicator) {
+		var minval = 0;
+  
+		for (i = 1; i <= cols - 1; i++) {
+		  testnum = roundSigDig(InMatrix[rows][i], 10);
+  
+		  if (testnum < minval) {
+			minval = testnum;
+			theCol = i;
+		  }
+		}
+	  }
+	}
+  
 	displayFinalStatus();
-
 	return InMatrix;
-} // simplexMethod
+  }
 
-// ********************** END OF SIMPLEX METHOD
+// ********************** FIM SIMPLEX **********************
 
 function checkString(InString, subString, backtrack) {
 	// check for subString
@@ -1000,8 +610,6 @@ function checkString(InString, subString, backtrack) {
 
 	return found;
 } // check
-
-// alert("HERE")
 
 function parser(InString, Sep) {
 	// ************************
@@ -1210,18 +818,6 @@ function sesame(url, hsize, vsize) {
 
 	Win_1 = window.open(url, "win1", tb);
 }
-
-// *** testing *******
-
-// document.theSpreadsheet.output.value = theSampleMatrixString;
-
-// document.theSpreadsheet.output.value +=  "\r" +  checkString(theString, cr+cr,false);
-
-// var matrixName = "A";
-
-// *** testing *******
-
-//  alert ("here");
 
 // ******************* LP PARSER FOLLOWS  **************************
 
@@ -1649,8 +1245,6 @@ function displayMatrix(number) {
 		var RowNum = numRows;
 
 		var ColNum = numCols;
-
-		// alert("about to display a "+ RowNum+ " x " + ColNum + "matrix");
 
 		// first round all the results and get the longest resulting string
 
